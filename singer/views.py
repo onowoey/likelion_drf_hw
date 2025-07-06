@@ -4,8 +4,8 @@ from django.shortcuts import render
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
 
-from .models import Singer
-from .serializers import SingerSerializer
+from .models import Singer, Song
+from .serializers import SingerSerializer, SongSerializer
 
 from django.shortcuts import get_object_or_404
 
@@ -42,3 +42,18 @@ def singer_detail_update_delete(request, singer_id):
             'deleted_singer': singer_id
         }
         return Response(data)
+    
+@api_view(['GET','POST'])
+def song_read_create(request, singer_id):
+    singer = get_object_or_404(Singer, id=singer_id)
+    
+    if request.method == 'GET':
+        songs = Song.objects.filter(singer=singer)
+        serializer = SongSerializer(songs, many=True)
+        return Response(data=serializer.data)
+    
+    elif request.method == 'POST':
+        serializer = SongSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(singer=singer)
+        return Response(serializer.data)
