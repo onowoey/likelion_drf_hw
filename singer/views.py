@@ -46,7 +46,7 @@ def singer_detail_update_delete(request, singer_id):
             #return Response(serializer.data)
             singer = serializer.save()
             content = request.data.get("content")
-            if content is not None:
+            if content is not None: #content 잇을 때만 수정 -> 다른 필드 수정할 때를 위해
                 singer.tags.clear()
                 tags = [words[1:] for words in content.split(' ') if words.startswith('#')]
 
