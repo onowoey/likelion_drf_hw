@@ -4,8 +4,8 @@ from django.shortcuts import render
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
 
-from .models import Singer, Song
-from .serializers import SingerSerializer, SongSerializer
+from .models import Singer, Song , Tag
+from .serializers import SingerSerializer, SongSerializer , TagSerializer
 
 from django.shortcuts import get_object_or_404
 
@@ -18,8 +18,18 @@ def singer_list_create(request):
     if request.method == 'POST':
         serializer = SingerSerializer(data=request.data)
         if serializer.is_valid(raise_exception=True):
-            serializer.save()
-            return Response(data=serializer.data)
+            singer = serializer.save()
+            content = request.data['content']
+            tags = [words[1:] for words in content.split(' ') if words.startswith('#')]
+            for t in tags:
+                try:
+                    tag = get_object_or_404(Tag, name=t)
+                except:
+                    tag = Tag(name=t)
+                    tag.save()
+                singer.tags.add(tag)
+            singer.save()
+            return Response(data=SingerSerializer(singer).data)
         
 @api_view(['GET','DELETE','PATCH'])
 def singer_detail_update_delete(request, singer_id):
@@ -32,9 +42,22 @@ def singer_detail_update_delete(request, singer_id):
     elif request.method == 'PATCH':
         serializer = SingerSerializer(instance=singer, data=request.data, partial=True)
         if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=400)
+            #serializer.save()
+            #return Response(serializer.data)
+            singer = serializer.save()
+            content = request.data.get("content")
+            if content is not None:
+                singer.tags.clear()
+                tags = [words[1:] for words in content.split(' ') if words.startswith('#')]
+
+                for t in tags:
+                    tag, created = Tag.objects.get_or_create(name=t)
+                    singer.tags.add(tag)
+
+            singer.save()
+
+
+        return Response(data=SingerSerializer(singer).data)
     
     elif request.method == 'DELETE':
         singer.delete()
@@ -57,3 +80,11 @@ def song_read_create(request, singer_id):
         if serializer.is_valid():
             serializer.save(singer=singer)
         return Response(serializer.data)
+    
+@api_view(['GET'])
+def find_tag(request, tags_name):
+    tags = get_object_or_404(Tag, name=tags_name)
+    if request.method == 'GET':
+        singer = Singer.objects.filter(tags__in = [tags])
+        serializer = SingerSerializer(singer, many=True)
+        return Response(data = serializer.data)
